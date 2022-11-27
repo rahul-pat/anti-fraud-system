@@ -1,6 +1,8 @@
 package com.github.rahulpat.antifraudsystem.controller;
 
 import com.github.rahulpat.antifraudsystem.auth.UserRepository;
+import com.github.rahulpat.antifraudsystem.entities.Operation;
+import com.github.rahulpat.antifraudsystem.entities.Role;
 import com.github.rahulpat.antifraudsystem.entities.User;
 import com.github.rahulpat.antifraudsystem.entities.UserWithoutPassword;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,6 +42,17 @@ public class RegistrationController {
             // A bean is available of type PasswordEncoder from the WebSecurityImpl class
             user.setPassword(encoder.encode(user.getPassword()));
 
+            // Give the first User an ADMINISTRATOR role and all following Users a MERCHANT role
+            // The ADMINISTRATOR account is not locked while all MERCHANT are locked initially
+            // TODO: replace with .count() method
+            if(userRepo.findAll().size() == 0) {
+                user.setRole(Role.ADMINISTRATOR);
+                user.setUserNotLocked(true);
+            } else {
+                user.setRole(Role.MERCHANT);
+                user.setUserNotLocked(false);
+            }
+
             // Add the User to the H2 database using the built-in save() method from Spring Data JPA
             // We Autowired a bean of UserRepository type which extends the JpaRepository class and provides us
             // the built-in Spring Data JPA methods such as save()
@@ -52,7 +65,8 @@ public class RegistrationController {
             // name and username
             return new ResponseEntity(Map.of("id", newUser.getId(),
                                             "name", newUser.getName(),
-                                            "username", newUser.getUsername()),
+                                            "username", newUser.getUsername(),
+                                            "role", newUser.getRole()),
                     HttpStatus.CREATED);
         } else {
 
@@ -86,6 +100,69 @@ public class RegistrationController {
                     "status", "Deleted successfully!"),
                     HttpStatus.OK);
         }
+    }
+    // This endpoint is only available to ADMINISTRATOR
+    // It is used to update the role of a User
+    @PutMapping("/api/auth/role")
+    public ResponseEntity<String> changeUserRole(@RequestBody User user) {
+
+        // If the username is not found in the database, return HTTP NOT FOUND status
+        // If the Role is not SUPPORT or MERCHANT, return HTTP BAD REQUEST status
+        if (userRepo.findByUsername(user.getUsername()) == null) {
+            return new ResponseEntity(HttpStatus.NOT_FOUND);
+        } else if (user.getRole().toString() != Role.SUPPORT.toString() && user.getRole().toString() != Role.MERCHANT.toString()) {
+            return new ResponseEntity(HttpStatus.BAD_REQUEST);
+        }
+
+        // Find the username in the database
+        User userToUpdate = userRepo.findByUsername(user.getUsername());
+
+        // If the Role to assign is the same as the existing role, return HTTP CONFLICT status
+        if (userToUpdate.getRole() == user.getRole()) {
+            return new ResponseEntity(HttpStatus.CONFLICT);
+        }
+
+        // Update the role and save to the database
+        userToUpdate.setRole(user.getRole());
+        userRepo.save(userToUpdate);
+
+        return new ResponseEntity(Map.of("id", userToUpdate.getId(),
+                "name", userToUpdate.getName(),
+                "username", userToUpdate.getUsername(),
+                "role", userToUpdate.getRole()),
+                HttpStatus.OK);
+    }
+
+    @PutMapping("/api/auth/access")
+    public ResponseEntity<String> changeUserAccess(@RequestBody User user) {
+
+        // If the username is not found in the database, return HTTP NOT FOUND status
+        // For safety reasons, ADMINISTRATOR cannot be blocked
+        if (userRepo.findByUsername(user.getUsername()) == null) {
+            return new ResponseEntity(HttpStatus.NOT_FOUND);
+        } else if (user.getRole() == Role.ADMINISTRATOR) {
+            return new ResponseEntity(HttpStatus.BAD_REQUEST);
+        }
+
+        // Find the username in the database
+        User userToUpdate = userRepo.findByUsername(user.getUsername());
+
+        // Unlock or lock the User access
+        if (user.getOperation() == Operation.LOCK) {
+            userToUpdate.setOperation(Operation.LOCK);
+            userToUpdate.setUserNotLocked(false);
+            userRepo.save(userToUpdate);
+        } else if (user.getOperation() == Operation.UNLOCK) {
+            userToUpdate.setOperation(Operation.UNLOCK);
+            userToUpdate.setUserNotLocked(true);
+            userRepo.save(userToUpdate);
+        } else {
+            // Bad operation in the request
+            return new ResponseEntity(HttpStatus.BAD_REQUEST);
+        }
+
+        return new ResponseEntity(Map.of("status", "User " + user.getUsername() + " " + user.getOperation().toString().toLowerCase() + "ed!"),
+                HttpStatus.OK);
     }
 
 }

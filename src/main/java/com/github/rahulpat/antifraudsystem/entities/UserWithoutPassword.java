@@ -10,4 +10,6 @@ public interface UserWithoutPassword {
 
     String getUsername();
 
+    Role getRole();
+
 }

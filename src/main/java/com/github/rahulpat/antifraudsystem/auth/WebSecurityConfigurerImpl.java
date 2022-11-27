@@ -1,5 +1,6 @@
 package com.github.rahulpat.antifraudsystem.auth;
 
+import com.github.rahulpat.antifraudsystem.entities.Role;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -60,10 +61,16 @@ public class WebSecurityConfigurerImpl extends WebSecurityConfigurerAdapter {
                 .csrf().disable().headers().frameOptions().disable() // for Postman, the H2 console
                 .and()
                 .authorizeRequests() // manage access
-                .mvcMatchers("/api/auth/list").authenticated()
-                .mvcMatchers("/api/auth/user/*").authenticated()
-                .mvcMatchers(HttpMethod.POST, "/api/antifraud/transaction").authenticated()
+                .mvcMatchers("/api/auth/list").hasAnyRole("ADMINISTRATOR", "SUPPORT")
+                .mvcMatchers(HttpMethod.DELETE, "/api/auth/user/*").hasRole("ADMINISTRATOR")
+                .mvcMatchers(HttpMethod.POST, "/api/antifraud/transaction").hasRole("MERCHANT")
                 .mvcMatchers(HttpMethod.POST, "/api/auth/user").permitAll()
+                .mvcMatchers(HttpMethod.PUT, "/api/auth/access").hasRole("ADMINISTRATOR")
+                .mvcMatchers(HttpMethod.PUT, "/api/auth/role").hasRole("ADMINISTRATOR")
+                .mvcMatchers(HttpMethod.POST,"/api/antifraud/suspicious-ip").hasRole("SUPPORT")
+                .mvcMatchers(HttpMethod.GET,"/api/antifraud/suspicious-ip").hasRole("SUPPORT")
+                .mvcMatchers(HttpMethod.DELETE,"/api/antifraud/suspicious-ip/*").hasRole("SUPPORT")
+                .mvcMatchers("/api/antifraud/stolencard").hasRole("SUPPORT")
                 .mvcMatchers("/actuator/shutdown").permitAll() // needs to run test
                 .and()
                 .sessionManagement()
