@@ -37,14 +37,19 @@ public class WebSecurityConfigurerImpl extends WebSecurityConfigurerAdapter {
     protected void configure(AuthenticationManagerBuilder auth) throws Exception {
 
         // The code block below can be uncommented to hardcode a User into memory for testing purposes only
-        /*
+/*
         auth.inMemoryAuthentication()
-                .withUser("user1")
-                .password(getEncoder().encode("pass1"))
-                .roles()
+                .withUser("user2")
+                .password(getEncoder().encode("pass2"))
+                .roles("MERCHANT")
+                .and()
+                .withUser("user3")
+                .password(getEncoder().encode("pass3"))
+                .roles("SUPPORT")
                 .and()
                 .passwordEncoder(getEncoder());
-        */
+*/
+
 
         // We are using a custom implementation of authentication using UserDetailsService and an H2 database
         auth.userDetailsService(userDetailsService)
